@@ -10,6 +10,7 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.intersphinx']
 master_doc = 'index'
 source_suffix = '.rst'
 
+html_sidebars = {'**': ['about.html', 'navigation.html']}
 html_static_path = ['.']
 intersphinx_mapping = {
     'python': ('http://docs.python.org/3/', None),
