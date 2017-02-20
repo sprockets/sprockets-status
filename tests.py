@@ -1,8 +1,10 @@
 import json
+import pkg_resources
 
-from tornado import testing
+from tornado import testing, web
 
 import examples.app
+import sprockets_status.handlers
 
 
 class SimpleStatusTests(testing.AsyncHTTPTestCase):
@@ -33,3 +35,28 @@ class SimpleStatusTests(testing.AsyncHTTPTestCase):
         self.assertEqual(response.code, 200)
         body = json.loads(response.body.decode('utf-8'))
         self.assertEqual(body['status'], 'ok')
+
+
+class PackageLookupTests(testing.AsyncHTTPTestCase):
+
+    def setUp(self):
+        super(PackageLookupTests, self).setUp()
+        self.package_info = pkg_resources.get_distribution('tornado')
+
+    def get_app(self):
+        return web.Application([
+            web.url('/status', sprockets_status.handlers.StatusHandler,
+                    {'package': 'tornado'}),
+        ])
+
+    def test_that_application_name_is_included(self):
+        response = self.fetch('/status')
+        self.assertEqual(response.code, 200)
+        body = json.loads(response.body.decode('utf-8'))
+        self.assertEqual(body['name'], self.package_info.project_name)
+
+    def test_that_application_version_is_included(self):
+        response = self.fetch('/status')
+        self.assertEqual(response.code, 200)
+        body = json.loads(response.body.decode('utf-8'))
+        self.assertEqual(body['version'], self.package_info.version)
