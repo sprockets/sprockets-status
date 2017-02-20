@@ -1,0 +1,14 @@
+language: python
+python:
+  - 2.7
+  - 3.4
+  - 3.5
+  - pypy
+sudo: false
+install:
+  - pip install -r requires/testing.txt coveralls sphinx
+script:
+  - nosetests
+  - ./setup.py build_sphinx
+after_success:
+  - coveralls
