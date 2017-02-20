@@ -25,6 +25,10 @@ packages because they are actually more trouble than they are worth.
 
 Simplest Example
 ================
+The simplest example is a JSON payload that contains directly configured
+information.  The application name and version is passed through the
+``URLSpec`` keyword arguments to the status handler.
+
 .. code-block:: python
 
    from tornado import ioloop, web
@@ -45,6 +49,52 @@ Simplest Example
            iol.start()
        except KeyboardInterrupt:
            iol.stop()
+
+Running this application and retrieving the ``/status`` resource returns
+the following:
+
+.. code-block:: http
+
+   HTTP/1.1 200 OK
+   Content-Length: 62
+   Etag: "e7bca140bba5af0fdb7b9e4fab6487186d7739d2"
+   Content-Type: application/json
+   Server: TornadoServer/4.4.2
+   Date: Mon, 20 Feb 2017 12:54:47 GMT
+
+   {"status": "ok", "version": "1.1.1", "name": "my-app-name"}
+
+Python Packaged Application
+===========================
+If your application is a python package, then you can let the status
+handler do the work of looking up your application's name and version
+number from the python package metadata.
+
+.. code-block:: python
+
+   from tornado import ioloop, web
+   import sprockets_status.handlers
+
+   def make_app(**settings):
+       return web.Application([
+           web.url('/status', sprockets_status.handlers.StatusHandler,
+                   {'package': 'my-app'}),
+           # add your handlers here
+       ], **settings)
+
+   if __name__ == '__main__':
+       app = make_app()
+       iol = ioloop.IOLoop.current()
+       try:
+           app.listen(8888)
+           iol.start()
+       except KeyboardInterrupt:
+           iol.stop()
+
+The status handler will use ``pkg_resources`` to look up the named
+distribution and retrieve the package name and version for you.  If you
+give it a package that doesn't exist, then it will return a server error
+so don't do that.
 
 Developer Quickstart
 ====================
