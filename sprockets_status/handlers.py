@@ -1,7 +1,11 @@
 import json
+import logging
 import pkg_resources
 
 from tornado import web
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class StatusHandler(web.RequestHandler):
@@ -60,7 +64,11 @@ class StatusHandler(web.RequestHandler):
                 cls._application_name = pkg_info.project_name
                 cls._application_version = pkg_info.version
                 cls._package_name = None
+                _LOGGER.debug('found application information "%s" %s',
+                              cls._application_name, cls._application_version)
             except pkg_resources.ResolutionError:
+                _LOGGER.exception('failed to lookup package "%r"',
+                                  cls._package_name)
                 cls._application_name = None
                 cls._application_version = None
 
