@@ -1,7 +1,7 @@
 import json
 import pkg_resources
 
-from tornado import web
+from tornado import concurrent, gen, web
 
 
 class StatusHandler(web.RequestHandler):
@@ -29,6 +29,7 @@ class StatusHandler(web.RequestHandler):
         self.name = 'UNKNOWN'
         self.version = '0.0.0'
         self.status = 'ok'
+        self._package_name = None
         super(StatusHandler, self).__init__(*args, **kwargs)
 
     def initialize(self, **kwargs):
@@ -47,12 +48,27 @@ class StatusHandler(web.RequestHandler):
 
         """
         if 'package' in kwargs:
-            pkg_info = pkg_resources.get_distribution(kwargs['package'])
-            self.name = pkg_info.project_name
-            self.version = pkg_info.version
+            self._package_name = kwargs['package']
         else:
-            self.name = self.name or kwargs.get('name')
-            self.version = self.version or kwargs.get('version')
+            self.name = kwargs.get('name') or self.name
+            self.version = kwargs.get('version') or self.version
+
+    @gen.coroutine
+    def prepare(self):
+        maybe_future = super(StatusHandler, self).prepare()
+        if concurrent.is_future(maybe_future):
+            yield maybe_future
+
+        if not self._finished:
+            if self._package_name is not None:
+                try:
+                    pkg_info = pkg_resources.get_distribution(
+                        self._package_name)
+                    self.name = pkg_info.project_name
+                    self.version = pkg_info.version
+                except pkg_resources.ResolutionError:
+                    self.set_status(500)
+                    self.finish()
 
     def get(self):
         """

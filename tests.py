@@ -10,7 +10,7 @@ import sprockets_status.handlers
 class SimpleStatusTests(testing.AsyncHTTPTestCase):
 
     def get_app(self):
-        return examples.app.make_app(debug=True)
+        return examples.app.make_app()
 
     def test_that_content_type_is_set(self):
         response = self.fetch('/status')
@@ -40,14 +40,16 @@ class SimpleStatusTests(testing.AsyncHTTPTestCase):
 class PackageLookupTests(testing.AsyncHTTPTestCase):
 
     def setUp(self):
+        self.application = None
         super(PackageLookupTests, self).setUp()
         self.package_info = pkg_resources.get_distribution('tornado')
 
     def get_app(self):
-        return web.Application([
+        self.application = web.Application([
             web.url('/status', sprockets_status.handlers.StatusHandler,
                     {'package': 'tornado'}),
         ])
+        return self.application
 
     def test_that_application_name_is_included(self):
         response = self.fetch('/status')
@@ -60,3 +62,9 @@ class PackageLookupTests(testing.AsyncHTTPTestCase):
         self.assertEqual(response.code, 200)
         body = json.loads(response.body.decode('utf-8'))
         self.assertEqual(body['version'], self.package_info.version)
+
+    def test_that_package_lookup_failure_results_in_server_error(self):
+        _, spec_list = self.application.handlers[-1]
+        spec_list[0].kwargs['package'] = 'not-a-package'
+        response = self.fetch('/status')
+        self.assertEqual(response.code, 500)
