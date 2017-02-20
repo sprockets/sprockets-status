@@ -9,6 +9,11 @@ import sprockets_status.handlers
 
 class SimpleStatusTests(testing.AsyncHTTPTestCase):
 
+    @classmethod
+    def setUpClass(cls):
+        super(SimpleStatusTests, cls).setUpClass()
+        sprockets_status.handlers.StatusHandler._package_name = None
+
     def get_app(self):
         return examples.app.make_app()
 
@@ -38,6 +43,11 @@ class SimpleStatusTests(testing.AsyncHTTPTestCase):
 
 
 class PackageLookupTests(testing.AsyncHTTPTestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super(PackageLookupTests, cls).setUpClass()
+        sprockets_status.handlers.StatusHandler._package_name = None
 
     def setUp(self):
         self.application = None

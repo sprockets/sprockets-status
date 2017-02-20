@@ -1,7 +1,7 @@
 import json
 import pkg_resources
 
-from tornado import concurrent, gen, web
+from tornado import web
 
 
 class StatusHandler(web.RequestHandler):
@@ -25,12 +25,44 @@ class StatusHandler(web.RequestHandler):
 
     """
 
-    def __init__(self, *args, **kwargs):
-        self.name = 'UNKNOWN'
-        self.version = '0.0.0'
-        self.status = 'ok'
-        self._package_name = None
-        super(StatusHandler, self).__init__(*args, **kwargs)
+    OK = 'ok'
+    FAILURE = 'failed'
+
+    _package_name = None
+    _application_name = 'UNKNOWN'
+    _application_version = None
+
+    @property
+    def application_name(self):
+        """The application's reported name."""
+        self._lookup_package_info()
+        return self._application_name
+
+    @property
+    def application_version(self):
+        """The application's version number."""
+        self._lookup_package_info()
+        return self._application_version
+
+    @property
+    def application_status(self):
+        """The application's current status."""
+        self._lookup_package_info()
+        if self.application_name is None:
+            return self.FAILURE
+        return self.OK
+
+    @classmethod
+    def _lookup_package_info(cls):
+        if cls._package_name is not None:
+            try:
+                pkg_info = pkg_resources.get_distribution(cls._package_name)
+                cls._application_name = pkg_info.project_name
+                cls._application_version = pkg_info.version
+                cls._package_name = None
+            except pkg_resources.ResolutionError:
+                cls._application_name = None
+                cls._application_version = None
 
     def initialize(self, **kwargs):
         """
@@ -47,28 +79,12 @@ class StatusHandler(web.RequestHandler):
         keywords are used.
 
         """
+        cls = self.__class__
         if 'package' in kwargs:
-            self._package_name = kwargs['package']
+            cls._package_name = kwargs['package']
         else:
-            self.name = kwargs.get('name') or self.name
-            self.version = kwargs.get('version') or self.version
-
-    @gen.coroutine
-    def prepare(self):
-        maybe_future = super(StatusHandler, self).prepare()
-        if concurrent.is_future(maybe_future):
-            yield maybe_future
-
-        if not self._finished:
-            if self._package_name is not None:
-                try:
-                    pkg_info = pkg_resources.get_distribution(
-                        self._package_name)
-                    self.name = pkg_info.project_name
-                    self.version = pkg_info.version
-                except pkg_resources.ResolutionError:
-                    self.set_status(500)
-                    self.finish()
+            cls._application_name = kwargs['name']
+            cls._application_version = kwargs['version']
 
     def get(self):
         """
@@ -85,9 +101,15 @@ class StatusHandler(web.RequestHandler):
            }
 
         """
-        self.set_status(200)
+        if self.application_status == self.FAILURE:
+            self.set_status(500)
+        else:
+            self.set_status(200)
+
         self.set_header('Content-Type', 'application/json')
-        self.write(json.dumps({'name': self.name,
-                               'version': self.version,
-                               'status': self.status}).encode('utf-8'))
+        self.write(json.dumps({
+            'name': self.application_name,
+            'version': self.application_version,
+            'status': self.application_status
+        }).encode('utf-8'))
         self.finish()
